@@ -1,0 +1,155 @@
+---
+title: "Round 2 Analysis"
+output: html_document
+date: "2025-12-18"
+---
+# Setup
+```{r}
+library(tidyverse)
+library(janitor)
+```
+
+# Data clean
+```{r}
+raw <- read.csv('digital_prescription_management_experience_survey-entries-2025-12-18_14-48.csv')  # replace all of these with final dataset in jan
+transcripts <- make_transcript_table('digital_prescription_management_experience_survey-usability_transcripts-2025-12-18_16-4') 
+
+transcripts$scout_name <- transcripts$filename %>% sapply(FUN = function(x) {
+  # print(strsplit(x, '-'))
+  split <- strsplit(x, '-') %>% unlist
+  # print(split)
+  n <- length(split)
+  almost_name <- split[n - 2]
+  name <- almost_name %>% strsplit('/')
+  name <- (name %>% unlist)[2]
+  return(name)
+})
+
+screen_raw <- read.csv('feeling_your_best-applications-2025-12-18_15-51.csv')
+
+screen_raw <- screen_raw %>% select(
+  scout_id = Scout.ID,
+  autoimmune = Q2..For.what.type.of.condition.were.you.prescribed.medication...If.you.have.received.multiple.prescriptions.in.the.last.5.years..select.all.that.apply....Autoimmune.or.immune.related.conditions...Multiple.choice...4266222.,
+  digital_pharmacy = Q4..In.which.of.the.following.ways.have.you.tracked.the.status.of.your.prescription.in.the.past.5.years..Select.all.that.apply...Online.portal.or.mobile.app.via.my.pharmacy...Multiple.choice...4266223.,
+  digital_manufacturer = Q4..In.which.of.the.following.ways.have.you.tracked.the.status.of.your.prescription.in.the.past.5.years..Select.all.that.apply...Online.portal.or.mobile.app.via.the.drug.manufacturer...Multiple.choice...4266223.,
+  historical_sp = Q5..How.do.you.typically.receive.your.prescriptions..Select.all.that.apply...I.receive.it.through.a.specialty.pharmacy..i.e..a.pharmacy.that.serves.patients.with.serious.or.complex.medical.conditions....Multiple.choice...4266228.,
+  historical_pa = Q6..Which.of.the.following.statements.have.applied.to.you.over.the.last.5.years..Select.all.that.apply...I.have.had.to.obtain.special.approval.from.my.insurance.before.starting.a.prescription...Multiple.choice...4266224.
+)
+
+screen <- screen_raw %>% mutate_at(vars(autoimmune:historical_pa), list(~. != ''))
+
+surv <- raw %>% select(
+  scout_id = Scout.ID,
+  scout_name = Scout.Name,
+  age = Age,
+  gender = Gender,
+  state = State,
+  edu = Education.Level,
+  employed = Employment.Status,
+  ethnicity = Ethnicity,
+  household = Household.Composition,
+  income = Household.Income,
+  historical_copay_support = Q2..First..we.d.like.to.get.some.more.context.about.your.experiences.with.prescription.medications...Have.you.ever.sought.or.received.financial.assistance.for.a.prescription.medication.on.top.of.the.insurance.coverage.you.received.for.the.medication..such.as.copay.cards.from.the.drug.manufacturer....Multiple.choice...4356882.,
+  welcome_call = Q5..Let.s.say.you.were.just.prescribed.a.new.medication.and.are.getting.onboarded.into.the.drug.manufacturer.s.digital.support.experience.for.the.first.time..The.drug.manufacturer.s.patient.support.team.can.provide.a.welcome.call.to.walk.you.through.what.to.expect.from.the.experience...Which.of.the.following.would.you.prefer...Multiple.choice...4356880.,
+  missing_info_oriented = Q7..If.the.text.message.in.this.task.was.the.first.text.you.received.after.consenting.to.participate.in.the.patient.services.experience..which.of.the.following.best.describes.how.you.would.feel..Feel.free.to.talk.out.loud.to.explain.your.thinking...Multiple.choice...4356886.,
+  welcome_screen_mi = Q8..Missing.insurance.info.needs.to.be.submitted.promptly.in.order.for.patients..coverage.to.be.determined..If.the.web.page.shown.in.this.task.included.additional.context.about.why.you.needed.to.submit.your.insurance.information..to.what.extent.would.this.impact.your.likelihood.of.submitting.your.insurance.information.in.a.timely.manner...Multiple.choice...4356911.,
+  revisit_links_quiz = Q10..Based.on.what.you.saw.in.the.web.page..which.of.the.following.statements.do.you.think.is.true...Multiple.choice...4356888.,
+  revisit_links_prefer = Q11..Which.of.the.following.would.you.prefer.regarding.the.message.about.reusable.links...Multiple.choice...4356881.,
+  timeline_prefer = Q13..Given.that.the.manufacturer.hasn.t.yet.confirmed.which.benefits.you.are.eligible.for..which.version.of.the.journey.timeline.do.you.feel.provides.an.optimal.level.of.information.at.this.point.in.the.process..Feel.free.to.talk.out.loud.to.explain.your.thinking...Multiple.choice...4356890.,
+  bibv_faq = Q15..How.easy.or.difficult.was.it.to.find.out.how.long.it.takes.for.the.drug.manufacturer.to.check.your.insurance.coverage...Multiple.choice...4356892.,
+  bibv_action = Q16..Based.on.this.screen..if.you.were.the.patient..how.clear.or.unclear.is.it.what.action.you.would.have.to.take.at.this.moment...Multiple.choice...4356893.,
+  thirdparty_headsup = Q18..In.your.opinion..how.necessary.or.unnecessary.is.it.that.the.drug.manufacturer.sends.you.a.heads.up.message.like.the.one.above.before.calling.you.to.verify.your.insurance.coverage...Multiple.choice...4356895.,
+  thirdparty_availability = Q20..In.your.opinion..how.necessary.or.unnecessary.is.it.that.the.drug.manufacturer.provides.the.ability.for.you.to.provide.your.general.availability.ahead.of.calling.you.to.verify.your.benefits...Multiple.choice...4356897.,
+  bridge_info = Q22..How.do.you.feel.about.the.amount.of.information.available.on.this.page..Feel.free.to.talk.out.loud.to.explain.your.thinking...Multiple.choice...4356899.,
+  bridge_ending = Q24..Based.on.this.screen..how.clear.or.unclear.is.it.what.happens.after.the.Bridge.Program.ends...Multiple.choice...4356901.,
+  sp_action = Q26..Based.on.this.screen..if.you.were.the.patient..how.clear.or.unclear.is.it.what.action.you.would.have.to.take.at.this.moment...Multiple.choice...4356903.,
+  copay_dashboard = Q29..How.helpful.or.unhelpful.would.this.dashboard.be.in.informing.you.about.whether.your.medication.is.covered.by.your.copay.support...Multiple.choice...4356907.,
+  copay_balance = Q30..If.the.dashboard.will.always.show.the.remaining.number.of.fills.that.your.copay.support.can.cover.for.the.year..how.important.is.it.that.the.dashboard.also.shows.your.remaining.copay.support.balance..in.dollars....Multiple.choice...4356906.,
+  copay_info = Q31..Is.there.any.other.information.that.could.appear.on.this.dashboard.to.better.inform.you.about.how.much.of.your.copay.support.remains...Talk.out.loud...4356909.,
+  reduce_calls = Q32..Based.on.your.understanding.of.the.entire.digital.patient.support.system.we.showed.you.so.far..choose.the.statement.below.that.you.most.agree.with...._Compared.to.having.no.digital.support.experience.at.all..the.digital.patient.support.experience.shown._..Multiple.choice...4356908.,
+  branding = Q33..You.re.almost.done..Which.of.the.following.would.you.prefer.when.it.comes.to.the.overall.patient.support.experience...Multiple.choice...4356910.
+)
+
+surv <- surv %>% left_join(screen)
+tabyl(surv$historical_pa)  # should be no NA
+
+surv <- surv %>% left_join(transcripts)
+# do a look over to confirm none are missing, since not everyone talked in every question
+```
+
+
+
+Order factors
+```{r}
+surv$missing_info_oriented <- factor(levels = c("I would feel not at all oriented to why I received this message.", 
+                                                "I would feel slightly oriented to why I received this message.",
+                                                "I would feel somewhat oriented to why I received this message.",
+                                                "I would feel mostly oriented to why I received this message.",
+                                                "I would feel very oriented to why I received this message."))
+
+surv$welcome_screen_mi <- factor(levels = c(
+  "It would make me much less likely to submit my insurance information in a timely manner.",	
+  "It would make me somewhat less likely to submit my insurance information in a timely manner.",	
+  "It would not impact my likelihood of submitting my insurance information in a timely manner.",	
+  "It would make me somewhat more likely to submit my insurance information in a timely manner.",	
+ " It would make me much more likely to submit my insurance information in a timely manner."
+))
+
+surv$bibv_faq <- factor(levels = c(
+  "Very difficult",
+  "Difficult",
+  "Neither easy nor difficult",
+  "Easy",
+  "Very easy"
+))
+
+surv$bibv_action <- factor(levels = c(
+  "Very unclear",
+  "Unclear",
+  "Neither clear nor unclear",
+  "Clear",
+  "Very clear"
+))
+
+surv$thirdparty_headsup <- factor(levels = c(
+  
+))
+
+surv$thirdparty_availability <- factor(levels = c(
+
+))
+
+surv$bridge_info <- factor(levels = c(
+  
+))
+
+surv$bridge_ending <- factor(levels = c(
+  
+))
+
+surv$sp_action <- factor(levels = c(
+  
+))
+
+surv$copay_dashboard <- factor(levels = c(
+  
+))
+
+surv$copay_balance <- factor(levels = c(
+  
+))
+
+surv$reduce_calls <- factor(levels = c(
+  
+))
+
+
+
+
+
+
+
+```
+
+
+
