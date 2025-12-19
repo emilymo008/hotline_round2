@@ -73,29 +73,34 @@ surv <- raw %>% select(
 surv <- surv %>% left_join(screen)
 tabyl(surv$historical_pa)  # should be no NA
 
+surv$scout_name[surv$scout_name == 'José A'] <- 'José A'  # some sort of encoding issue on the accent 
 surv <- surv %>% left_join(transcripts)
-# do a look over to confirm none are missing, since not everyone talked in every question
+which(is.na(surv$`Q33: You're almost done! Which of the following would you prefer when it comes to the overall patient support experience?`))  # should be 0
+
+# write.csv(surv, 'clean_survey_INCOMPLETE.csv')
 ```
 
 
 
 Order factors
 ```{r}
-surv$missing_info_oriented <- factor(levels = c("I would feel not at all oriented to why I received this message.", 
-                                                "I would feel slightly oriented to why I received this message.",
-                                                "I would feel somewhat oriented to why I received this message.",
-                                                "I would feel mostly oriented to why I received this message.",
-                                                "I would feel very oriented to why I received this message."))
+surv$missing_info_oriented <- factor(surv$missing_info_oriented, levels = c(
+  "I would feel not at all oriented to why I received this message.", 
+  "I would feel slightly oriented to why I received this message.",
+  "I would feel somewhat oriented to why I received this message.",
+  "I would feel mostly oriented to why I received this message.",
+  "I would feel very oriented to why I received this message."
+  ))
 
-surv$welcome_screen_mi <- factor(levels = c(
+surv$welcome_screen_mi <- factor(surv$welcome_screen_mi, levels = c(
   "It would make me much less likely to submit my insurance information in a timely manner.",	
   "It would make me somewhat less likely to submit my insurance information in a timely manner.",	
   "It would not impact my likelihood of submitting my insurance information in a timely manner.",	
   "It would make me somewhat more likely to submit my insurance information in a timely manner.",	
- " It would make me much more likely to submit my insurance information in a timely manner."
+  "It would make me much more likely to submit my insurance information in a timely manner."
 ))
 
-surv$bibv_faq <- factor(levels = c(
+surv$bibv_faq <- factor(surv$bibv_faq, levels = c(
   "Very difficult",
   "Difficult",
   "Neither easy nor difficult",
@@ -103,7 +108,7 @@ surv$bibv_faq <- factor(levels = c(
   "Very easy"
 ))
 
-surv$bibv_action <- factor(levels = c(
+surv$bibv_action <- factor(surv$bibv_action, levels = c(
   "Very unclear",
   "Unclear",
   "Neither clear nor unclear",
@@ -111,44 +116,84 @@ surv$bibv_action <- factor(levels = c(
   "Very clear"
 ))
 
-surv$thirdparty_headsup <- factor(levels = c(
-  
+surv$thirdparty_headsup <- factor(surv$thirdparty_headsup, levels = c(
+  "Completely unnecessary to have",
+  "Slightly helpful to have, but not necessary",
+  "Moderately helpful to have, but not necessary",
+  "Very helpful to have, but not necessary",
+  "Completely necessary to have"
 ))
 
-surv$thirdparty_availability <- factor(levels = c(
-
+surv$thirdparty_availability <- factor(surv$thirdparty_availability, levels = c(
+  "Completely unnecessary to have",
+  "Slightly helpful to have, but not necessary",
+  "Moderately helpful to have, but not necessary",
+  "Very helpful to have, but not necessary",
+  "Completely necessary to have"
 ))
 
-surv$bridge_info <- factor(levels = c(
-  
+surv$bridge_info <- factor(surv$bridge_info, levels = c(
+  "I would have needed a lot more information on the page to help me understand how the Bridge Program works.",
+  "I would have needed a bit more information on the page to help me understand how the Bridge Program works.",
+  "There was just the right amount of information on the page to help me understand how the Bridge Program works.",
+  "I could have used a bit less information on the page to understand how the Bridge Program works.",
+  "I could have used a lot less information on the page to understand how the Bridge Program works."
 ))
 
-surv$bridge_ending <- factor(levels = c(
-  
+surv$bridge_ending <- factor(surv$bridge_ending, levels = c(
+  "Very unclear",
+  "Unclear",
+  "Neither clear nor unclear",
+  "Clear",
+  "Very clear"
 ))
 
-surv$sp_action <- factor(levels = c(
-  
+surv$sp_action <- factor(surv$sp_action, levels = c(
+  "Very unclear",
+  "Unclear",
+  "Neither clear nor unclear",
+  "Clear",
+  "Very clear"
 ))
 
-surv$copay_dashboard <- factor(levels = c(
-  
+surv$copay_dashboard <- factor(surv$copay_dashboard, levels = c(
+  "Not at all helpful",
+  "Slightly helpful",
+  "Somewhat helpful",
+  "Helpful",
+  "Very helpful"
 ))
 
-surv$copay_balance <- factor(levels = c(
-  
+surv$copay_balance <- factor(surv$copay_balance, levels = c(
+  "Not at all important",
+  "Slightly important",
+  "Somewhat important",
+  "Important",
+  "Very important"
 ))
 
-surv$reduce_calls <- factor(levels = c(
-  
+surv$reduce_calls <- factor(surv$reduce_calls, levels = c(
+  "Does not at all reduce my likelihood to proactively contact my drug manufacturer’s patient services center via phone.",
+  "Slightly reduces my likelihood to proactively contact my drug manufacturer’s patient services center via phone.",
+  "Moderately reduces my likelihood to proactively contact my drug manufacturer’s patient services center via phone.",
+  "Mostly reduces my likelihood to proactively contact my drug manufacturer’s patient services center via phone.",
+  "Completely reduces my likelihood to proactively contact my drug manufacturer’s patient services center via phone."
 ))
 
+```
 
 
+# Analysis
+```{r}
+# orientation to MI sliced by experience with SP
 
+# option a vs b timeline sliced by experience with SP
+tabyl(surv, historical_sp, timeline_prefer) %>% adorn_percentages() %>% adorn_ns()  # people with historical experience with sp might be more open to B - do a test
 
+# option a vs b timeline sliced by experience with PA
+tabyl(surv, historical_pa, timeline_prefer) %>% adorn_percentages() %>% adorn_ns()  # same
 
-
+# 
 ```
 
 
